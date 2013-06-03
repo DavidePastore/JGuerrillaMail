@@ -28,7 +28,7 @@ public class EMail {
 	private String body;
 	
 	public EMail(JSONObject jSonObject) throws JSONException{
-		System.out.println("jsonobject: "+jSonObject);
+		//System.out.println("jsonobject: "+jSonObject);
 		recipient = jSonObject.getString("mail_recipient");
 		timestamp = jSonObject.getLong("mail_timestamp");
 		date = jSonObject.getString("mail_date");

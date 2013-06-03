@@ -3,14 +3,14 @@
  */
 package com.guerrillamail.www;
 
-import java.io.UnsupportedEncodingException;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
@@ -72,7 +72,6 @@ public class GuerrillaMail {
      * Constructor.
      */
 	public GuerrillaMail() throws Exception{
-        _getEmailAddress();
 	}
 	
 	
@@ -82,18 +81,23 @@ public class GuerrillaMail {
 	 */
 	public GuerrillaMail(String lang) throws Exception{
 		this.lang = lang;
-        _getEmailAddress();
 	}
 
 	
 	/**
 	 * The function is used to initialize a session and set the client with an email address.
+	 * If the account is expired you will get another address.
 	 * @throws Exception 
 	 */
 	private void _getEmailAddress() throws Exception {
 		httpPost = new HttpPost(String.format(apiAddr, "get_email_address"));
 		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
         formparams.add(new BasicNameValuePair("lang", lang));
+        
+        if(sidToken != null){
+        	formparams.add(new BasicNameValuePair("sid_token", sidToken));
+        }
+        
         UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, "UTF-8");
         httpPost.setEntity(entity);
 		httpResponse = httpclient.execute(httpPost);
@@ -241,6 +245,97 @@ public class GuerrillaMail {
 		return email;
 	}
 	
+	/**
+	 * Forget the current email address.
+	 * @return true if successful, false otherwise.
+	 * @throws Exception 
+	 */
+	private void _forgetMe() throws Exception{
+		httpPost = new HttpPost(String.format(apiAddr, "forget_me"));
+		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
+		formparams.add(new BasicNameValuePair("lang", "en"));
+        formparams.add(new BasicNameValuePair("sid_token", sidToken));
+        formparams.add(new BasicNameValuePair("email_addr", emailAddress));
+        UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, "UTF-8");
+        httpPost.setEntity(entity);
+		httpResponse = httpclient.execute(httpPost);
+        stringResponse = EntityUtils.toString(httpResponse.getEntity());
+
+        if(!Boolean.valueOf(stringResponse)){
+        	throw new Exception("forgetMe isn't successfull.");
+        }
+        else{
+        	emailAddress = null;
+        	emails = new ArrayList<EMail>();
+        	seqOldestEMail = -1;
+        	sidToken = null;
+        	timestamp = -1;
+        }
+	}
+	
+	/**
+	 * Delete all the email with the parameter id.
+	 * @param emailIds the ArrayList with all the emailId that you want to delete.
+	 * @throws IOException 
+	 * @throws ClientProtocolException 
+	 */
+	private void _delEmail(ArrayList<Integer> emailIds) throws ClientProtocolException, IOException{
+		Iterator<Integer> iterator = emailIds.iterator();
+		httpPost = new HttpPost(String.format(apiAddr, "del_email"));
+		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
+		formparams.add(new BasicNameValuePair("lang", "en"));
+        formparams.add(new BasicNameValuePair("sid_token", sidToken));
+        
+        //Adding all the email ids in the form
+        while(iterator.hasNext()){
+        	formparams.add(new BasicNameValuePair("email_ids[]", Integer.toString(iterator.next())));
+        }
+        
+        UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, "UTF-8");
+        httpPost.setEntity(entity);
+		httpResponse = httpclient.execute(httpPost);
+        stringResponse = EntityUtils.toString(httpResponse.getEntity());
+        
+        //System.out.println("RESPONSE: "+stringResponse);
+	}
+	
+	/**
+	 * Extend the email address time by 1 hour. A maximum of 2 hours can be extended.
+	 * @throws Exception
+	 */
+	private void _extend() throws Exception{
+		httpPost = new HttpPost(String.format(apiAddr, "extend"));
+		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
+		formparams.add(new BasicNameValuePair("lang", "en"));
+        formparams.add(new BasicNameValuePair("sid_token", sidToken));
+        
+        UrlEncodedFormEntity entity = new UrlEncodedFormEntity(formparams, "UTF-8");
+        httpPost.setEntity(entity);
+		httpResponse = httpclient.execute(httpPost);
+        stringResponse = EntityUtils.toString(httpResponse.getEntity());
+        
+        jSonObject = new JSONObject(stringResponse);
+        
+        if(jSonObject.has("expired")){
+        	
+        	if(jSonObject.getBoolean("expired")){
+        		throw new Exception("The email has expired.");
+        	}
+        	
+        	timestamp = jSonObject.getLong("email_timestamp");
+        	sidToken = jSonObject.getString("sid_token");
+        	int affected = jSonObject.getInt("affected");
+        	
+        	if(!Utils.fromIntToBoolean(affected)){
+        		throw new Exception("The extension is not successful.");
+        	}
+        	
+        }
+        else{
+        	throw new Exception("_extend doesn't find response content: "+stringResponse);
+        }
+	}
+	
 	
 	
 	/**
@@ -297,6 +392,7 @@ public class GuerrillaMail {
 		return _checkEmail();
 	}
 	
+	
 	/**
 	 * Get the contents of an email.
 	 * @param emailId the id of the email you want to fetch.
@@ -308,14 +404,53 @@ public class GuerrillaMail {
 	}
 	
 	
+	/**
+	 * Forget the current email address.
+	 * @throws Exception 
+	 */
+	public void forgetMe() throws Exception{
+		if(emailAddress != null){
+			_forgetMe();
+		}
+	}
+	
+	
+	/**
+	 * Delete all the email with the parameter id.
+	 * @param emailIds the ArrayList with all the emailId that you want to delete.
+	 * @throws IOException 
+	 * @throws ClientProtocolException 
+	 */
+	public void delEmail(ArrayList<Integer> emailIds) throws ClientProtocolException, IOException{
+		_delEmail(emailIds);
+	}
+	
+	
+	/**
+	 * Extend the email address time by 1 hour. A maximum of 2 hours can be extended.
+	 * @throws Exception 
+	 */
+	public void extend() throws Exception{
+		if(emailAddress != null){
+			_extend();
+		} else{
+			throw new Exception("Email address is null.");
+		}
+	}
+	
+	
 	/* GET METHODS */
 	
 	
 	/**
-	 * Get email address.
+	 * Get email address. If the account is expired you will get another address.
 	 * @return the email address.
+	 * @throws Exception 
 	 */
-	public String getEmailAddress() {
+	public String getEmailAddress() throws Exception {
+		if(emailAddress == null){
+			_getEmailAddress();
+		}
 		return this.emailAddress;
 	}
 	
