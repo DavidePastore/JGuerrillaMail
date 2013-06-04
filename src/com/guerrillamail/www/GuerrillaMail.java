@@ -32,7 +32,6 @@ public class GuerrillaMail {
 	//For requests
 	private HttpClient httpclient = new DefaultHttpClient();
     private HttpResponse httpResponse;
-    private HttpGet httpGet;
     private HttpPost httpPost;
     private String stringResponse;
     private JSONObject jSonObject;
@@ -461,8 +460,6 @@ public class GuerrillaMail {
 	public ArrayList<EMail> getEmailList() throws Exception{
 		return this._getEmailList();
 	}
-	
-	
 	
 	
 	

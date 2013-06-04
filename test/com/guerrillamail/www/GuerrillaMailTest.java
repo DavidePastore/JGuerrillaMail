@@ -4,11 +4,13 @@
 package com.guerrillamail.www;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  * Test class for email address.
@@ -45,7 +47,9 @@ public class GuerrillaMailTest {
 			tester.setEmailUser("pingas");
 			assertNotNull("Email address must not be null after changing the user name", tester.getEmailAddress());
 			
-			assertNotNull("Email list must not be null after reading messages", tester.getEmailList());
+			emails = tester.getEmailList();
+			printEMails(emails);
+			assertNotNull("Email list must not be null after reading messages", emails);
 			
 			assertNotNull("Email list must not be null after checking messages",  tester.checkEmail());
 			
@@ -56,6 +60,33 @@ public class GuerrillaMailTest {
 			ex.printStackTrace();
 			fail(ex.getLocalizedMessage());
 		}
+	}
+	
+	
+	/**
+	 * Test for body null before fetching email.
+	 * @throws Exception
+	 */
+	@org.junit.Test
+	public void testBodyNullBeforeFetchEmail() throws Exception{
+		tester = new GuerrillaMail();
+		tester.getEmailAddress();
+		emails = tester.getEmailList();
+		assertNull("Email body must be null before fecth.",  emails.get(0).getBody());
+	}
+	
+	
+	/**
+	 * Test for body not null after fetching email.
+	 * @throws Exception
+	 */
+	@org.junit.Test
+	public void testBodyNotNullAfterFetchEmail() throws Exception{
+		tester = new GuerrillaMail();
+		tester.getEmailAddress();
+		emails = tester.getEmailList();
+		EMail email = tester.fetchEmail(emails.get(0).getId());
+		assertNotNull("Email body must not be null after fetch.",  email.getBody());
 	}
 	
 	/**
@@ -72,6 +103,7 @@ public class GuerrillaMailTest {
 	 * Test for double forget.
 	 * @throws Exception 
 	 */
+	@org.junit.Test
 	public void testDoubleForget() throws Exception {
 		forget();
 		forget();
@@ -122,6 +154,19 @@ public class GuerrillaMailTest {
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			fail(ex.getLocalizedMessage());
+		}
+	}
+	
+	/**
+	 * Print all the emails.
+	 * @param emails
+	 */
+	private void printEMails(ArrayList<EMail> emails){
+		Iterator<EMail> iterator = emails.iterator();
+		EMail email;
+		while(iterator.hasNext()){
+			email = iterator.next();
+			System.out.println(email);
 		}
 	}
 	
