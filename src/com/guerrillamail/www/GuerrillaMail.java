@@ -188,7 +188,7 @@ public class GuerrillaMail {
 		httpResponse = httpclient.execute(httpPost);
         stringResponse = EntityUtils.toString(httpResponse.getEntity());
         
-        //System.out.println("RESPONSE: "+stringResponse);
+        System.out.println("RESPONSE: "+stringResponse);
         
         jSonObject = new JSONObject(stringResponse);
         
